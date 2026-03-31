@@ -1,20 +1,68 @@
 """
-Job Matching Engine
-Computes a match score (0-100) between a user's resume and a job description.
-Method: TF-IDF cosine similarity + keyword overlap bonus.
+Job Matching Engine — Pure Python TF-IDF
+No numpy, no scikit-learn. Works on any Python version.
+Computes match score (0-100) between resume and job description.
 """
 import re
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import math
+from collections import Counter
 
 
-def _clean_text(text: str) -> str:
-    """Lowercase, remove punctuation/numbers, collapse whitespace."""
+def _tokenize(text: str) -> list[str]:
+    """Lowercase, remove punctuation, split into tokens. Keep bigrams too."""
     text = text.lower()
     text = re.sub(r"[^a-z\s]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    words = [w for w in text.split() if len(w) > 2 and w not in _STOPWORDS]
+
+    # Add bigrams for phrases like "machine learning", "software engineer"
+    bigrams = [f"{words[i]}_{words[i+1]}" for i in range(len(words) - 1)]
+    return words + bigrams
+
+
+_STOPWORDS = {
+    "the", "and", "for", "with", "this", "that", "are", "was", "were",
+    "has", "have", "had", "will", "would", "can", "could", "should",
+    "may", "might", "shall", "been", "being", "but", "not", "from",
+    "you", "your", "our", "their", "its", "all", "any", "each", "more",
+    "also", "about", "into", "over", "after", "such", "both", "through",
+    "during", "including", "without", "use", "used", "using", "work",
+    "working", "team", "ability", "strong", "good", "new", "etc",
+    "experience", "knowledge", "skills", "skill", "years", "year",
+    "must", "required", "requirements", "responsibilities", "role",
+    "position", "job", "company", "candidate", "looking", "join",
+    "help", "build", "develop", "design", "implement", "ensure",
+    "provide", "manage", "support", "create", "maintain", "make",
+}
+
+
+def _tfidf_vectors(doc1_tokens: list[str], doc2_tokens: list[str]) -> tuple[dict, dict]:
+    """Compute TF-IDF vectors for two documents."""
+    tf1 = Counter(doc1_tokens)
+    tf2 = Counter(doc2_tokens)
+    vocab = set(tf1) | set(tf2)
+
+    vec1, vec2 = {}, {}
+    for term in vocab:
+        # TF: term count / total tokens
+        t1 = tf1.get(term, 0) / max(len(doc1_tokens), 1)
+        t2 = tf2.get(term, 0) / max(len(doc2_tokens), 1)
+        # IDF: log((2+1) / (docs_containing_term + 1)) + 1
+        df = (1 if tf1.get(term, 0) > 0 else 0) + (1 if tf2.get(term, 0) > 0 else 0)
+        idf = math.log(3 / (df + 1)) + 1
+        vec1[term] = t1 * idf
+        vec2[term] = t2 * idf
+
+    return vec1, vec2
+
+
+def _cosine_similarity(vec1: dict, vec2: dict) -> float:
+    """Cosine similarity between two TF-IDF vectors."""
+    dot = sum(vec1.get(t, 0) * vec2.get(t, 0) for t in vec2)
+    mag1 = math.sqrt(sum(v * v for v in vec1.values()))
+    mag2 = math.sqrt(sum(v * v for v in vec2.values()))
+    if mag1 == 0 or mag2 == 0:
+        return 0.0
+    return dot / (mag1 * mag2)
 
 
 def compute_match(
@@ -36,30 +84,25 @@ def compute_match(
     if not job_description or not resume_text:
         return {"score": 0.0, "matched_keywords": [], "breakdown": {}}
 
-    resume_clean = _clean_text(resume_text + " " + " ".join(resume_skills))
-    job_clean = _clean_text(job_title + " " + job_description)
+    # Build combined text strings
+    resume_combined = resume_text + " " + " ".join(resume_skills)
+    job_combined = job_title + " " + job_description
 
     # ── 1. TF-IDF cosine similarity (60% weight) ──────────────────────────────
-    vectorizer = TfidfVectorizer(
-        ngram_range=(1, 2),
-        max_features=5000,
-        stop_words="english",
-    )
-    try:
-        tfidf_matrix = vectorizer.fit_transform([resume_clean, job_clean])
-        tfidf_score = float(cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0])
-    except Exception:
-        tfidf_score = 0.0
+    resume_tokens = _tokenize(resume_combined)
+    job_tokens    = _tokenize(job_combined)
+
+    vec1, vec2 = _tfidf_vectors(resume_tokens, job_tokens)
+    tfidf_score = _cosine_similarity(vec1, vec2)
 
     # ── 2. Keyword overlap (30% weight) ───────────────────────────────────────
-    job_tokens = set(job_clean.split())
-    resume_tokens = set(resume_clean.split())
     all_resume_kw = set(kw.lower() for kw in (resume_keywords + resume_skills))
+    job_text_lower = job_combined.lower()
 
     matched_kw = []
     for kw in all_resume_kw:
-        kw_clean = _clean_text(kw)
-        if kw_clean and kw_clean in job_clean:
+        kw_clean = re.sub(r"[^a-z\s]", " ", kw).strip()
+        if kw_clean and kw_clean in job_text_lower:
             matched_kw.append(kw)
 
     keyword_overlap = len(matched_kw) / max(len(all_resume_kw), 1)
@@ -70,11 +113,10 @@ def compute_match(
         job_title_lower = job_title.lower()
         for role in user_job_roles:
             role_words = role.lower().split()
-            if all(word in job_title_lower for word in role_words):
+            if all(w in job_title_lower for w in role_words):
                 title_bonus = 1.0
                 break
-            # Partial match
-            if any(word in job_title_lower for word in role_words):
+            if any(w in job_title_lower for w in role_words):
                 title_bonus = max(title_bonus, 0.5)
 
     # ── Final weighted score ───────────────────────────────────────────────────
@@ -83,7 +125,7 @@ def compute_match(
 
     return {
         "score": score,
-        "matched_keywords": sorted(set(matched_kw))[:30],  # top 30
+        "matched_keywords": sorted(set(matched_kw))[:30],
         "breakdown": {
             "tfidf": round(tfidf_score * 100, 1),
             "keyword_overlap": round(keyword_overlap * 100, 1),
@@ -100,7 +142,7 @@ def batch_match(
 ) -> list[dict]:
     """
     Match a resume against a list of jobs.
-    Returns only jobs above the threshold, sorted by score desc.
+    Returns only jobs above threshold, sorted by score descending.
     """
     results = []
     for job in jobs:
