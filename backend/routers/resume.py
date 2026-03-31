@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from services.supabase_client import get_authed_client
+from services.supabase_client import get_service_client
 from services.ats_parser import parse_resume
 from routers.auth import get_current_user
 import uuid
@@ -31,10 +31,10 @@ async def upload_resume(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     user_id = current_user["id"]
 
-    # Upload to Supabase Storage
+    # Upload to Supabase Storage using service role
     storage_path = f"{user_id}/resume_{uuid.uuid4().hex[:8]}_{file.filename}"
     try:
         client.storage.from_("resumes").upload(
@@ -72,7 +72,7 @@ async def upload_resume(
 
 @router.get("/")
 def get_resume(current_user: dict = Depends(get_current_user)):
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     result = (
         client.table("resumes")
         .select("id, file_name, file_url, parsed_skills, job_titles, education, experience_years, updated_at")
@@ -86,6 +86,6 @@ def get_resume(current_user: dict = Depends(get_current_user)):
 
 @router.delete("/")
 def delete_resume(current_user: dict = Depends(get_current_user)):
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     client.table("resumes").delete().eq("user_id", current_user["id"]).execute()
     return {"message": "Resume deleted."}

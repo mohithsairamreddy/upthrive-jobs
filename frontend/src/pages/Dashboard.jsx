@@ -3,13 +3,14 @@ import Navbar from '../components/Navbar'
 import JobCard from '../components/JobCard'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
-import { Zap, TrendingUp, Bell, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { Zap, TrendingUp, Bell, RefreshCw, SlidersHorizontal, Clock } from 'lucide-react'
 
 function StatCard({ icon: Icon, label, value, sub }) {
   return (
     <div className="card p-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center">
+        <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
           <Icon className="w-5 h-5 text-brand-600" />
         </div>
         <div>
@@ -22,13 +23,53 @@ function StatCard({ icon: Icon, label, value, sub }) {
   )
 }
 
+function SkeletonCard() {
+  return (
+    <div className="card p-4 animate-pulse">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-10 bg-slate-200 rounded-full" />
+            <div className="h-5 w-48 bg-slate-200 rounded" />
+            <div className="h-5 w-20 bg-slate-200 rounded-full" />
+          </div>
+          <div className="h-3.5 w-32 bg-slate-100 rounded" />
+          <div className="h-3 w-56 bg-slate-100 rounded" />
+          <div className="flex gap-1 mt-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-5 w-14 bg-slate-100 rounded-full" />
+            ))}
+          </div>
+        </div>
+        <div className="h-8 w-16 bg-slate-200 rounded-lg flex-shrink-0" />
+      </div>
+    </div>
+  )
+}
+
+function StatSkeleton() {
+  return (
+    <div className="card p-4 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-slate-200 rounded-lg flex-shrink-0" />
+        <div className="space-y-2">
+          <div className="h-6 w-12 bg-slate-200 rounded" />
+          <div className="h-3 w-24 bg-slate-100 rounded" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
+  const { user } = useAuth()
   const [matches, setMatches]   = useState([])
   const [stats, setStats]       = useState(null)
   const [loading, setLoading]   = useState(true)
   const [filters, setFilters]   = useState({ min_score: '', location: '', job_type: '' })
   const [page, setPage]         = useState(1)
   const [showFilters, setShowFilters] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   const fetchData = async (p = 1) => {
     setLoading(true)
@@ -45,8 +86,14 @@ export default function Dashboard() {
       setMatches(matchRes.data.matches || [])
       setStats(statsRes.data)
       setPage(p)
+      setLastUpdated(new Date())
     } catch (err) {
-      toast.error('Failed to load matches.')
+      const detail = err.response?.data?.detail
+      if (detail) {
+        toast.error(`Failed to load matches: ${detail}`)
+      } else {
+        toast.error('Failed to load matches. Check your connection and try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -59,6 +106,8 @@ export default function Dashboard() {
     fetchData(1)
   }
 
+  const firstName = user?.email?.split('@')[0] || 'there'
+
   return (
     <div className="flex min-h-screen">
       <Navbar />
@@ -67,23 +116,44 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Job Matches</h1>
-            <p className="text-sm text-slate-500">Updated daily at 7:30 AM IST</p>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Welcome back, {firstName}
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Job matches — updated daily at 7:30 AM IST
+              {lastUpdated && (
+                <span className="ml-2 inline-flex items-center gap-1 text-slate-400">
+                  <Clock className="w-3 h-3" />
+                  Last refreshed {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
           </div>
           <button
             onClick={() => fetchData(page)}
-            className="btn-secondary flex items-center gap-2 text-sm"
+            disabled={loading}
+            className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
           >
-            <RefreshCw className="w-4 h-4" /> Refresh
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
 
         {/* Stats */}
-        {stats && (
+        {loading && !stats ? (
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <StatSkeleton /><StatSkeleton /><StatSkeleton />
+          </div>
+        ) : stats && (
           <div className="grid grid-cols-3 gap-4 mb-6">
             <StatCard icon={Zap}       label="Today's matches"  value={stats.today_matches} />
-            <StatCard icon={TrendingUp} label={`Last ${stats.retention_days} days`} value={stats.total_matches} sub={`avg ${stats.avg_score}% match`} />
-            <StatCard icon={Bell}       label="Your threshold"   value={`${stats.threshold}%`} sub="Change in Settings" />
+            <StatCard
+              icon={TrendingUp}
+              label={`Last ${stats.retention_days} days`}
+              value={stats.total_matches}
+              sub={stats.avg_score > 0 ? `avg ${stats.avg_score}% match` : undefined}
+            />
+            <StatCard icon={Bell} label="Your threshold" value={`${stats.threshold}%`} sub="Change in Settings" />
           </div>
         )}
 
@@ -150,15 +220,18 @@ export default function Dashboard() {
 
         {/* Job list */}
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} />)}
           </div>
         ) : matches.length === 0 ? (
-          <div className="card p-12 text-center text-slate-400">
+          <div className="card p-12 text-center">
             <Zap className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-            <p className="font-medium text-slate-500">No matches yet</p>
-            <p className="text-sm mt-1">
-              Make sure you've uploaded your resume. New jobs are matched every morning.
+            <p className="font-semibold text-slate-600 text-lg">No matches yet</p>
+            <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">
+              Matches will appear here after the daily scrape runs. You can trigger it manually from GitHub Actions.
+            </p>
+            <p className="text-xs text-slate-400 mt-3">
+              Make sure you've uploaded your resume and set your target job roles in Settings.
             </p>
           </div>
         ) : (

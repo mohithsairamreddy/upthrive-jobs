@@ -1,20 +1,53 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Navbar from '../components/Navbar'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
-import { Save, Bell, Target, Calendar, MapPin } from 'lucide-react'
+import { Save, Bell, Target, Calendar, MapPin, Check } from 'lucide-react'
+
+function SaveButton({ onClick, disabled, label = 'Save', savedKey, sectionKey }) {
+  const [justSaved, setJustSaved] = useState(false)
+  const timerRef = useRef(null)
+
+  // Show checkmark briefly when this section was successfully saved
+  useEffect(() => {
+    if (savedKey === sectionKey) {
+      setJustSaved(true)
+      clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setJustSaved(false), 2000)
+    }
+    return () => clearTimeout(timerRef.current)
+  }, [savedKey, sectionKey])
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`btn-primary text-sm mt-3 flex items-center gap-1.5 transition-all ${
+        justSaved ? 'bg-green-600 hover:bg-green-700' : ''
+      } disabled:opacity-50`}
+    >
+      {justSaved ? (
+        <><Check className="w-3.5 h-3.5" /> Saved!</>
+      ) : (
+        <><Save className="w-3.5 h-3.5" /> {label}</>
+      )}
+    </button>
+  )
+}
 
 export default function Settings() {
   const [settings, setSettings] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
+  const [savedKey, setSavedKey] = useState(null)
 
   const fetchSettings = async () => {
     try {
       const { data } = await api.get('/settings/')
       setSettings(data)
-    } catch {
-      toast.error('Failed to load settings.')
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      toast.error(detail ? `Failed to load settings: ${detail}` : 'Failed to load settings. Please refresh.')
     } finally {
       setLoading(false)
     }
@@ -22,14 +55,31 @@ export default function Settings() {
 
   useEffect(() => { fetchSettings() }, [])
 
-  const save = async (field, value) => {
+  const save = async (field, value, sectionKey) => {
     setSaving(true)
     try {
       await api.patch('/settings/', { [field]: value })
       setSettings((s) => ({ ...s, [field]: value }))
-      toast.success('Saved.')
+      setSavedKey(sectionKey)
+      toast.success('Settings saved.')
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to save.')
+      const detail = err.response?.data?.detail
+      toast.error(detail || 'Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveMultiple = async (fields, sectionKey) => {
+    setSaving(true)
+    try {
+      await api.patch('/settings/', fields)
+      setSettings((s) => ({ ...s, ...fields }))
+      setSavedKey(sectionKey)
+      toast.success('Settings saved.')
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      toast.error(detail || 'Failed to save. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -80,13 +130,13 @@ export default function Settings() {
                 {settings?.match_threshold ?? 70}%
               </span>
             </div>
-            <button
-              onClick={() => save('match_threshold', settings.match_threshold)}
+            <SaveButton
+              onClick={() => save('match_threshold', settings.match_threshold, 'threshold')}
               disabled={saving}
-              className="btn-primary text-sm mt-3 flex items-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5" /> Save threshold
-            </button>
+              label="Save threshold"
+              savedKey={savedKey}
+              sectionKey="threshold"
+            />
           </div>
 
           {/* Job retention */}
@@ -110,13 +160,13 @@ export default function Settings() {
                 {settings?.job_retention_days ?? 7} days
               </span>
             </div>
-            <button
-              onClick={() => save('job_retention_days', settings.job_retention_days)}
+            <SaveButton
+              onClick={() => save('job_retention_days', settings.job_retention_days, 'retention')}
               disabled={saving}
-              className="btn-primary text-sm mt-3 flex items-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5" /> Save period
-            </button>
+              label="Save period"
+              savedKey={savedKey}
+              sectionKey="retention"
+            />
           </div>
 
           {/* Email settings */}
@@ -147,13 +197,16 @@ export default function Settings() {
                   <option value="never">Never (disable emails)</option>
                 </select>
               </div>
-              <button
-                onClick={() => save('notification_email', settings.notification_email) && save('email_frequency', settings.email_frequency)}
+              <SaveButton
+                onClick={() => saveMultiple(
+                  { notification_email: settings.notification_email, email_frequency: settings.email_frequency },
+                  'email'
+                )}
                 disabled={saving}
-                className="btn-primary text-sm flex items-center gap-1.5"
-              >
-                <Save className="w-3.5 h-3.5" /> Save email settings
-              </button>
+                label="Save email settings"
+                savedKey={savedKey}
+                sectionKey="email"
+              />
             </div>
           </div>
 
@@ -170,13 +223,13 @@ export default function Settings() {
               onChange={handleRolesChange}
               placeholder={"Software Engineer\nData Scientist\nML Engineer"}
             />
-            <button
-              onClick={() => save('job_roles', settings.job_roles)}
+            <SaveButton
+              onClick={() => save('job_roles', settings.job_roles, 'roles')}
               disabled={saving}
-              className="btn-primary text-sm mt-3 flex items-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5" /> Save roles
-            </button>
+              label="Save roles"
+              savedKey={savedKey}
+              sectionKey="roles"
+            />
           </div>
 
           {/* Experience level */}
@@ -193,13 +246,13 @@ export default function Settings() {
               <option value="senior">Senior (5–8 yrs)</option>
               <option value="lead">Lead / Staff (8+ yrs)</option>
             </select>
-            <button
-              onClick={() => save('experience_level', settings.experience_level)}
+            <SaveButton
+              onClick={() => save('experience_level', settings.experience_level, 'experience')}
               disabled={saving}
-              className="btn-primary text-sm mt-3 flex items-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5" /> Save
-            </button>
+              label="Save"
+              savedKey={savedKey}
+              sectionKey="experience"
+            />
           </div>
 
         </div>

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from services.supabase_client import get_authed_client, get_service_client
+from services.supabase_client import get_service_client
 from routers.auth import get_current_user
 from models.schemas import CompanyCreate, UserCompanyToggle
 
@@ -11,7 +11,7 @@ def list_companies(current_user: dict = Depends(get_current_user)):
     """
     Return all companies with the user's enabled/disabled status merged in.
     """
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     user_id = current_user["id"]
 
     # Fetch all global companies
@@ -40,7 +40,7 @@ def toggle_company(
     current_user: dict = Depends(get_current_user),
 ):
     """Enable or disable a company for the current user."""
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     user_id = current_user["id"]
 
     # Upsert user_companies row
@@ -82,8 +82,7 @@ def add_company(
         company_id = result.data[0]["id"]
 
     # Auto-enable for this user
-    client = get_authed_client(current_user["token"])
-    client.table("user_companies").upsert(
+    svc.table("user_companies").upsert(
         {"user_id": current_user["id"], "company_id": company_id, "is_enabled": True},
         on_conflict="user_id,company_id",
     ).execute()
@@ -97,7 +96,7 @@ def remove_company_for_user(
     current_user: dict = Depends(get_current_user),
 ):
     """Permanently remove a company from user's list (sets disabled + won't appear)."""
-    client = get_authed_client(current_user["token"])
+    client = get_service_client()
     client.table("user_companies").upsert(
         {"user_id": current_user["id"], "company_id": company_id, "is_enabled": False},
         on_conflict="user_id,company_id",
