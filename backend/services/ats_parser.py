@@ -1,21 +1,12 @@
 """
 ATS Resume Parser
 Extracts skills, job titles, education, keywords from PDF/DOCX resumes.
-Uses pdfminer + spaCy (no paid API needed).
+Uses pdfminer + pure Python regex (no compilation needed).
 """
 import io
 import re
-import spacy
 from pdfminer.high_level import extract_text as pdf_extract
 from docx import Document
-
-# Load spaCy model (downloaded during setup)
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    import subprocess
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
-    nlp = spacy.load("en_core_web_sm")
 
 # ── Curated skills list (tech + non-tech) ─────────────────────────────────────
 SKILLS_DB = {
@@ -139,26 +130,28 @@ def extract_experience_years(text: str) -> float:
 
 def extract_keywords(text: str) -> list[str]:
     """
-    NLP-based keyword extraction using spaCy NER + noun chunks.
-    Returns meaningful tokens for TF-IDF matching.
+    Pure-Python keyword extraction using regex tokenization.
+    Extracts meaningful multi-word and single-word tokens for TF-IDF matching.
     """
-    doc = nlp(text[:50000])  # limit to 50k chars for performance
     keywords = set()
 
-    # Named entities (ORG, PRODUCT, etc.)
-    for ent in doc.ents:
-        if ent.label_ in ("ORG", "PRODUCT", "GPE", "WORK_OF_ART"):
-            keywords.add(ent.text.lower().strip())
-
-    # Noun chunks (tech terms usually appear as noun phrases)
-    for chunk in doc.noun_chunks:
-        token = chunk.text.lower().strip()
-        if 2 < len(token) < 50 and not token.isdigit():
-            keywords.add(token)
-
-    # Also include matched skills as keywords
+    # Include all matched skills
     skills = extract_skills(text)
     keywords.update(skills)
+
+    # Extract capitalized multi-word phrases (e.g. "Machine Learning", "Product Manager")
+    phrases = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', text)
+    for phrase in phrases:
+        token = phrase.lower().strip()
+        if 3 < len(token) < 50:
+            keywords.add(token)
+
+    # Extract standalone capitalized words (tools, tech names like "AWS", "React")
+    words = re.findall(r'\b[A-Z]{2,}\b', text)
+    for word in words:
+        token = word.lower()
+        if 2 < len(token) < 20:
+            keywords.add(token)
 
     return sorted(keywords)
 
