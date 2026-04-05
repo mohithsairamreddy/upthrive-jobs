@@ -11,7 +11,7 @@ env:
 
 jobs:
   scrape-match-email:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
 
     steps:
@@ -39,34 +39,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
 
-      # ── Fix for libasound2 renamed → libasound2t64 on Ubuntu 24.04 ────────
-      # Skip playwright install-deps (broken). Install system libs manually
-      # with the correct package names for both Ubuntu 22.04 and 24.04.
-      - name: Install Chromium system dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            libasound2t64 \
-            libatk1.0-0 \
-            libatk-bridge2.0-0 \
-            libcups2 \
-            libdrm2 \
-            libgbm1 \
-            libgtk-3-0 \
-            libnspr4 \
-            libnss3 \
-            libxcomposite1 \
-            libxdamage1 \
-            libxfixes3 \
-            libxkbcommon0 \
-            libxrandr2 \
-            xvfb || true   # continue even if some optional packages missing
-
-      - name: Install Playwright browser (skip if cached)
+      - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        env:
-          CI: ""    # Playwright >=1.47 auto-runs install-deps when CI=true; unset to prevent it
-        run: python -m playwright install chromium
+        run: python -m playwright install chromium --with-deps
 
       - name: Step 1 — Scrape jobs
         working-directory: backend
