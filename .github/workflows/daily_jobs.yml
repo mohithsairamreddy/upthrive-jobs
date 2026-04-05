@@ -64,6 +64,8 @@ jobs:
 
       - name: Install Playwright browser (skip if cached)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+        env:
+          CI: ""    # Playwright >=1.47 auto-runs install-deps when CI=true; unset to prevent it
         run: python -m playwright install chromium
 
       - name: Step 1 — Scrape jobs
