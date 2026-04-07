@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from services.supabase_client import get_service_client
+from services.ghost_detector import filter_ghost_jobs
 from scrapers import scrape_company
 
 
@@ -26,6 +27,7 @@ async def run():
     print(f"[Scrape] Found {len(companies)} active companies.")
 
     total_new = 0
+    total_ghosts = 0
 
     for company in companies:
         print(f"\n[Scrape] Processing: {company['name']} ({company['scrape_method']})")
@@ -37,6 +39,18 @@ async def run():
 
         if not jobs:
             continue
+
+        # Fetch existing jobs for this company (for ghost detection)
+        existing_res = svc.table("jobs").select(
+            "id, title, description, posted_at, apply_url"
+        ).eq("company_id", company["id"]).execute()
+        existing_jobs = existing_res.data or []
+
+        # Ghost job detection: reuse original posted_at for reposts
+        jobs, ghost_count = filter_ghost_jobs(jobs, existing_jobs)
+        if ghost_count:
+            total_ghosts += ghost_count
+            print(f"[Scrape] {company['name']}: {ghost_count} ghost/repost job(s) detected — original dates preserved.")
 
         # Upsert jobs (skip duplicates based on company_id + apply_url)
         inserted = 0
@@ -63,6 +77,7 @@ async def run():
     cutoff = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat()
     svc.table("jobs").delete().lt("scraped_at", cutoff).execute()
     print(f"\n[Scrape] Cleanup: removed jobs older than 30 days.")
+    print(f"[Scrape] Ghost jobs detected this run: {total_ghosts}")
     print(f"[Scrape] Done. Total new/updated jobs: {total_new}")
 
 
