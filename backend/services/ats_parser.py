@@ -37,6 +37,42 @@ SKILLS_DB = {
     "product management", "stakeholder management", "mentoring",
     # Domain
     "fintech", "edtech", "healthtech", "e-commerce", "saas", "b2b", "b2c",
+    # Additional languages & frameworks
+    "golang", "elixir", "haskell", "solidity", "assembly", "cobol",
+    "nestjs", "nextjs", "nuxt", "svelte", "remix", "astro",
+    "fastify", "hapi", "gin", "fiber", "actix", "axum",
+    "celery", "rabbitmq", "kafka", "grpc", "protobuf", "thrift",
+    # Data & ML (extended)
+    "llm", "generative ai", "large language model", "transformer", "bert", "gpt",
+    "langchain", "llamaindex", "vector database", "rag", "fine-tuning",
+    "hugging face", "openai", "anthropic", "gemini",
+    "feature engineering", "model deployment", "mlops", "kubeflow", "mlflow",
+    "power bi", "tableau", "looker", "metabase", "superset",
+    "bigquery", "snowflake", "databricks", "dbt", "redshift",
+    # Cloud & DevOps (extended)
+    "helm", "argocd", "gitlab ci", "circleci", "tekton", "spinnaker",
+    "prometheus", "grafana", "datadog", "new relic", "splunk",
+    "nginx", "apache", "haproxy", "traefik", "istio", "envoy",
+    "lambda", "ec2", "s3", "rds", "ecs", "eks", "fargate",
+    "gke", "cloud run", "cloud functions", "pub/sub",
+    # Security
+    "oauth", "jwt", "saml", "sso", "penetration testing", "devsecops",
+    "owasp", "zero trust", "encryption", "ssl/tls",
+    # Testing
+    "unit testing", "integration testing", "selenium", "cypress", "jest",
+    "pytest", "junit", "testng", "load testing", "jmeter", "locust",
+    # Architecture
+    "event-driven", "cqrs", "event sourcing", "hexagonal architecture",
+    "domain-driven design", "ddd", "solid principles", "design patterns",
+    "distributed systems", "high availability", "fault tolerance", "scalability",
+    # Databases (extended)
+    "clickhouse", "tidb", "cockroachdb", "scylladb", "arangodb",
+    "oracle", "ms sql", "sql server", "db2",
+    # Mobile (extended)
+    "jetpack compose", "swiftui", "expo", "capacitor", "ionic",
+    # Productivity & Collaboration
+    "notion", "slack", "github", "gitlab", "bitbucket", "linear",
+    "trello", "asana", "monday.com",
 }
 
 # Common job titles to detect

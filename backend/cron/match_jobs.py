@@ -32,8 +32,17 @@ def run():
     jobs_res = svc.table("jobs").select(
         "id, title, description, location, job_type, company_id"
     ).gte("scraped_at", cutoff).execute()
-    jobs = jobs_res.data or []
-    print(f"[Match] {len(jobs)} new jobs to match against.")
+    all_jobs = jobs_res.data or []
+
+    # Filter out placeholder descriptions (useless for matching)
+    jobs = [
+        j for j in all_jobs
+        if j.get("description")
+        and len(j.get("description", "")) > 80
+        and not j.get("description", "").lower().startswith("visit careers")
+        and not j.get("description", "").lower().startswith("apply at ")
+    ]
+    print(f"[Match] {len(jobs)} matchable jobs ({len(all_jobs)-len(jobs)} placeholders filtered).")
 
     if not jobs:
         print("[Match] No new jobs today. Exiting.")

@@ -58,18 +58,50 @@ async def _setup_page(page: Page, ua: str):
 # ── Generic career page scraper ───────────────────────────────────────────────
 
 GENERIC_JOB_SELECTORS = [
-    # Common patterns across career portals
+    # Standard job URL patterns
     "a[href*='/job/']",
     "a[href*='/jobs/']",
     "a[href*='/career/']",
     "a[href*='/careers/']",
     "a[href*='job-detail']",
     "a[href*='jobdetail']",
+    "a[href*='/opening/']",
+    "a[href*='/openings/']",
+    "a[href*='/position/']",
+    "a[href*='/positions/']",
+    "a[href*='/vacancy/']",
+    "a[href*='/vacancies/']",
+    # ATS-specific patterns
+    "a[href*='icims.com']",
+    "a[href*='taleo.net']",
+    "a[href*='greenhouse.io']",
+    "a[href*='lever.co']",
+    "a[href*='workday.com']",
+    "a[href*='ashbyhq.com']",
+    "a[href*='myworkdayjobs.com']",
+    # Class-based selectors
     "[data-job-id]",
+    "[data-jobid]",
+    "[data-job-title]",
     ".job-listing a",
     ".career-listing a",
     ".opening a",
     ".position a",
+    ".job-card a",
+    ".job-item a",
+    ".job-row a",
+    ".job-title a",
+    ".jobs-list a",
+    ".job-openings a",
+    ".careers-list a",
+    ".role-card a",
+    "[class*='job-card'] a",
+    "[class*='job-item'] a",
+    "[class*='job-listing'] a",
+    "[class*='opening'] a",
+    "[class*='position-card'] a",
+    "table.jobs tbody tr a",
+    "ul.jobs li a",
 ]
 
 
@@ -148,14 +180,18 @@ async def scrape(company: dict) -> list[dict]:
         await _setup_page(page, ua)
 
         try:
-            await page.goto(careers_url, wait_until="domcontentloaded", timeout=30000)
+            try:
+                await page.goto(careers_url, wait_until="networkidle", timeout=35000)
+            except Exception:
+                # Fallback for sites that never reach networkidle
+                await page.goto(careers_url, wait_until="domcontentloaded", timeout=30000)
             await _human_delay(2000, 4000)
 
             # Scroll to trigger lazy loading
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
             await _human_delay(1000, 2000)
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await _human_delay(1000, 2000)
+            await _human_delay(1500, 2500)
 
             jobs = await _extract_jobs_from_page(page, company, careers_url)
 

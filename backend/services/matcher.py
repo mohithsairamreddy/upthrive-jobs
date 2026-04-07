@@ -95,7 +95,7 @@ def compute_match(
     vec1, vec2 = _tfidf_vectors(resume_tokens, job_tokens)
     tfidf_score = _cosine_similarity(vec1, vec2)
 
-    # ── 2. Keyword overlap (30% weight) ───────────────────────────────────────
+    # ── 2. Keyword overlap (50% weight) ───────────────────────────────────────
     all_resume_kw = set(kw.lower() for kw in (resume_keywords + resume_skills))
     job_text_lower = job_combined.lower()
 
@@ -105,7 +105,11 @@ def compute_match(
         if kw_clean and kw_clean in job_text_lower:
             matched_kw.append(kw)
 
-    keyword_overlap = len(matched_kw) / max(len(all_resume_kw), 1)
+    # Jaccard-style: matched / union — fairer than dividing only by resume size
+    job_tokens_set = set(_tokenize(job_combined))
+    union_size = len(all_resume_kw | job_tokens_set)
+    keyword_overlap = len(matched_kw) / max(union_size, 1) * 3  # scale up (Jaccard is normally small)
+    keyword_overlap = min(keyword_overlap, 1.0)
 
     # ── 3. Job title / role bonus (10% weight) ────────────────────────────────
     title_bonus = 0.0
@@ -120,7 +124,9 @@ def compute_match(
                 title_bonus = max(title_bonus, 0.5)
 
     # ── Final weighted score ───────────────────────────────────────────────────
-    score = (tfidf_score * 0.60 + keyword_overlap * 0.30 + title_bonus * 0.10) * 100
+    # Keyword overlap weighted higher (50%) since it's more reliable than TF-IDF
+    # on short job descriptions
+    score = (tfidf_score * 0.40 + keyword_overlap * 0.50 + title_bonus * 0.10) * 100
     score = round(min(score, 100.0), 1)
 
     return {
