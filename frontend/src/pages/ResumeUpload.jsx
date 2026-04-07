@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import Navbar from '../components/Navbar'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 
 export default function ResumeUpload() {
-  const [resume, setResume]   = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [resume, setResume]     = useState(null)
+  const [loading, setLoading]   = useState(true)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging]   = useState(false)
   const inputRef = useRef()
@@ -66,71 +66,87 @@ export default function ResumeUpload() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="app-shell">
       <Navbar />
-      <main className="ml-56 flex-1 p-6 max-w-3xl">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Resume</h1>
-        <p className="text-sm text-slate-500 mb-6">Upload your PDF or DOCX resume. It will be parsed for ATS matching.</p>
+      <main className="page-main max-w-3xl">
+
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Resume</h1>
+            <p className="page-sub">Upload your PDF or DOCX. Parsed automatically for ATS matching.</p>
+          </div>
+        </div>
 
         {loading ? (
-          <div className="flex justify-center py-16">
+          <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : resume ? (
-          /* Existing resume */
           <div className="space-y-4">
-            <div className="card p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-800 truncate">{resume.file_name}</p>
-                <p className="text-sm text-slate-500">
-                  {resume.education && `${resume.education} · `}
-                  {resume.experience_years > 0 && `${resume.experience_years} yrs exp`}
-                </p>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <button onClick={() => inputRef.current.click()} className="btn-secondary text-sm">
-                  Replace
-                </button>
-                <button onClick={handleDelete} className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+            {/* Resume info card */}
+            <div className="card p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-800 truncate">{resume.file_name}</p>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {[
+                      resume.education,
+                      resume.experience_years > 0 && `${resume.experience_years} yrs exp`,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => inputRef.current.click()}
+                    className="btn-secondary text-xs gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Replace
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    title="Delete resume"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Parsed skills */}
+            {/* Detected skills */}
             {resume.parsed_skills?.length > 0 && (
               <div className="card p-5">
-                <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-brand-500" /> Detected Skills ({resume.parsed_skills.length})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {resume.parsed_skills.map((s) => (
-                    <span key={s} className="text-xs bg-brand-50 text-brand-700 border border-brand-100 px-2.5 py-1 rounded-full">
-                      {s}
-                    </span>
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-brand-500" />
+                  <h3 className="font-semibold text-slate-800">
+                    Detected Skills
+                    <span className="ml-2 badge-brand">{resume.parsed_skills.length}</span>
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {resume.parsed_skills.map(s => (
+                    <span key={s} className="badge-blue">{s}</span>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Job titles */}
+            {/* Detected titles */}
             {resume.job_titles?.length > 0 && (
               <div className="card p-5">
-                <h3 className="font-semibold text-slate-700 mb-3">Detected Job Titles</h3>
-                <div className="flex flex-wrap gap-2">
-                  {resume.job_titles.map((t) => (
-                    <span key={t} className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-                      {t}
-                    </span>
+                <h3 className="font-semibold text-slate-800 mb-3">Detected Job Titles</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {resume.job_titles.map(t => (
+                    <span key={t} className="badge-slate">{t}</span>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-start gap-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <p>If your resume is image-based or scanned, the parser may miss some skills. Use a text-based PDF for best results.</p>
             </div>
@@ -138,21 +154,27 @@ export default function ResumeUpload() {
         ) : (
           /* Upload zone */
           <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            onClick={() => inputRef.current.click()}
-            className={`card p-16 text-center cursor-pointer transition-colors ${
-              dragging ? 'border-brand-500 bg-brand-50' : 'hover:border-brand-300 hover:bg-slate-50'
+            onClick={() => !uploading && inputRef.current.click()}
+            className={`card p-16 text-center cursor-pointer transition-all duration-200 ${
+              dragging
+                ? 'border-brand-500 bg-brand-50 shadow-md'
+                : 'hover:border-brand-300 hover:bg-slate-50 hover:shadow-md'
             }`}
           >
-            <Upload className={`w-12 h-12 mx-auto mb-4 ${dragging ? 'text-brand-500' : 'text-slate-300'}`} />
-            <p className="font-semibold text-slate-700">
-              {uploading ? 'Parsing resume…' : 'Drop your resume here or click to browse'}
+            <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-colors ${
+              dragging ? 'bg-brand-100' : 'bg-slate-100'
+            }`}>
+              <Upload className={`w-7 h-7 ${dragging ? 'text-brand-600' : 'text-slate-400'}`} />
+            </div>
+            <p className="font-semibold text-slate-700 text-lg">
+              {uploading ? 'Parsing your resume…' : 'Drop resume here or click to browse'}
             </p>
             <p className="text-sm text-slate-400 mt-1">PDF or DOCX · Max 5 MB</p>
             {uploading && (
-              <div className="mt-4 flex justify-center">
+              <div className="mt-5 flex justify-center">
                 <div className="w-6 h-6 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
@@ -164,7 +186,7 @@ export default function ResumeUpload() {
           type="file"
           accept=".pdf,.docx"
           className="hidden"
-          onChange={(e) => handleUpload(e.target.files[0])}
+          onChange={e => handleUpload(e.target.files[0])}
         />
       </main>
     </div>

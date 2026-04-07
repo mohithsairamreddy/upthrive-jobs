@@ -112,7 +112,7 @@ export default function Dashboard() {
                     new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="app-shell bg-slate-50">
       <Navbar />
       <main className="page-main">
 

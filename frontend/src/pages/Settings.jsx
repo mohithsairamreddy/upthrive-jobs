@@ -92,7 +92,7 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
+      <div className="app-shell">
         <Navbar />
         <main className="page-main flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
