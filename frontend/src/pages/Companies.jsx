@@ -73,7 +73,7 @@ export default function Companies() {
   return (
     <div className="flex min-h-screen">
       <Navbar />
-      <main className="ml-56 flex-1 p-6 max-w-4xl">
+      <main className="page-main max-w-4xl">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-2">

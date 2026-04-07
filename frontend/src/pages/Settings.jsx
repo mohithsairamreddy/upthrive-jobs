@@ -94,7 +94,7 @@ export default function Settings() {
     return (
       <div className="flex min-h-screen">
         <Navbar />
-        <main className="ml-56 flex-1 flex items-center justify-center">
+        <main className="page-main flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
         </main>
       </div>
@@ -104,7 +104,7 @@ export default function Settings() {
   return (
     <div className="flex min-h-screen">
       <Navbar />
-      <main className="ml-56 flex-1 p-6 max-w-2xl">
+      <main className="page-main max-w-2xl">
         <h1 className="text-2xl font-bold text-slate-900 mb-6">Settings</h1>
 
         <div className="space-y-5">

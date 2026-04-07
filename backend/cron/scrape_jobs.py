@@ -15,6 +15,7 @@ load_dotenv()
 
 from services.supabase_client import get_service_client
 from services.ghost_detector import filter_ghost_jobs
+from services.jd_scorer import compute_jd_quality
 from scrapers import scrape_company
 
 
@@ -57,6 +58,8 @@ async def run():
         for job in jobs:
             if not job.get("apply_url") or not job.get("title"):
                 continue
+            # Compute and attach JD quality score
+            job["jd_quality_score"] = compute_jd_quality(job.get("description", ""))
             try:
                 result = svc.table("jobs").upsert(
                     job,

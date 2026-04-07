@@ -1,22 +1,21 @@
-import { MapPin, Briefcase, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { MapPin, Briefcase, ExternalLink, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 
 function CompanyAvatar({ name, logoUrl }) {
   const [imgError, setImgError] = useState(false)
   const initial = (name || '?')[0].toUpperCase()
 
-  // Generate a deterministic background color from the company name
-  const colors = [
+  const palettes = [
+    'bg-violet-100 text-violet-700',
     'bg-blue-100 text-blue-700',
-    'bg-purple-100 text-purple-700',
-    'bg-green-100 text-green-700',
+    'bg-emerald-100 text-emerald-700',
     'bg-amber-100 text-amber-700',
     'bg-rose-100 text-rose-700',
-    'bg-teal-100 text-teal-700',
+    'bg-cyan-100 text-cyan-700',
+    'bg-orange-100 text-orange-700',
+    'bg-pink-100 text-pink-700',
   ]
-  const colorIndex = name
-    ? name.charCodeAt(0) % colors.length
-    : 0
+  const palette = name ? palettes[name.charCodeAt(0) % palettes.length] : palettes[0]
 
   if (logoUrl && !imgError) {
     return (
@@ -24,144 +23,171 @@ function CompanyAvatar({ name, logoUrl }) {
         src={logoUrl}
         alt={name}
         onError={() => setImgError(true)}
-        className="w-9 h-9 rounded-lg object-contain border border-slate-100 bg-white flex-shrink-0"
+        className="w-10 h-10 rounded-xl object-contain border border-slate-100 bg-white flex-shrink-0 shadow-sm"
       />
     )
   }
 
   return (
-    <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${colors[colorIndex]}`}>
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm ${palette}`}>
       {initial}
     </div>
   )
 }
 
-function ScoreBar({ score }) {
-  const barColor =
-    score >= 85 ? 'bg-green-500' :
-    score >= 70 ? 'bg-blue-500' :
-                  'bg-amber-400'
-  const textColor =
-    score >= 85 ? 'text-green-700' :
-    score >= 70 ? 'text-blue-700' :
-                  'text-amber-700'
+function ScoreBadge({ score }) {
+  const { bg, text, ring } =
+    score >= 85 ? { bg: 'bg-emerald-500',  text: 'text-white', ring: 'ring-emerald-200' } :
+    score >= 70 ? { bg: 'bg-brand-500',    text: 'text-white', ring: 'ring-brand-200'   } :
+                  { bg: 'bg-amber-400',    text: 'text-white', ring: 'ring-amber-200'   }
 
   return (
-    <div className="flex items-center gap-2 min-w-[100px]">
-      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${barColor}`}
-          style={{ width: `${Math.min(score, 100)}%` }}
-        />
-      </div>
-      <span className={`text-xs font-bold tabular-nums ${textColor}`}>{score}%</span>
+    <div className={`flex-shrink-0 w-12 h-12 rounded-xl ${bg} ring-2 ${ring}
+                     flex flex-col items-center justify-center shadow-sm`}>
+      <span className={`text-base font-bold leading-none ${text}`}>{score}</span>
+      <span className={`text-[9px] font-medium mt-0.5 ${text} opacity-80`}>match</span>
     </div>
   )
+}
+
+function JDQualityBadge({ score }) {
+  if (score === null || score === undefined) return null
+  if (score >= 0.65) return (
+    <span className="badge-green text-[10px]">
+      <CheckCircle2 className="w-2.5 h-2.5" /> Quality JD
+    </span>
+  )
+  if (score < 0.35) return (
+    <span className="badge-amber text-[10px]">
+      <AlertTriangle className="w-2.5 h-2.5" /> Vague JD
+    </span>
+  )
+  return null
 }
 
 function isNewJob(postedAt, scrapedAt) {
   const ref = postedAt || scrapedAt
   if (!ref) return false
-  const date = new Date(ref)
-  const now = new Date()
-  return (now - date) < 24 * 60 * 60 * 1000
+  return (new Date() - new Date(ref)) < 24 * 60 * 60 * 1000
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const h = Math.floor(diff / 3600000)
+  const d = Math.floor(diff / 86400000)
+  if (h < 1) return 'just now'
+  if (h < 24) return `${h}h ago`
+  if (d === 1) return 'yesterday'
+  return `${d}d ago`
 }
 
 export default function JobCard({ match }) {
   const [expanded, setExpanded] = useState(false)
-  const job = match.jobs || {}
-  const company = job.companies || {}
-  const keywords = match.matched_keywords || []
-  const isNew = isNewJob(job.posted_at, job.scraped_at)
+  const job       = match.jobs || {}
+  const company   = job.companies || {}
+  const keywords  = match.matched_keywords || []
+  const isNew     = isNewJob(job.posted_at, job.scraped_at)
+  const posted    = timeAgo(job.posted_at || job.scraped_at)
 
-  // Truncate description to ~200 chars
-  const desc = job.description || ''
-  const shortDesc = desc.length > 200 ? desc.slice(0, 200).trimEnd() + '…' : desc
-  const hasLongDesc = desc.length > 200
+  const desc      = job.description || ''
+  const shortDesc = desc.length > 220 ? desc.slice(0, 220).trimEnd() + '…' : desc
+  const hasMore   = desc.length > 220
 
   return (
-    <div className="card p-4 hover:border-brand-300 transition-colors">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex gap-3 flex-1 min-w-0">
-          <CompanyAvatar name={company.name} logoUrl={company.logo_url} />
+    <div className="card-hover p-4 animate-fade-in">
+      <div className="flex items-start gap-3">
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {isNew && (
-                <span className="text-xs font-semibold bg-brand-600 text-white px-2 py-0.5 rounded-full">
-                  New
-                </span>
-              )}
-              <h3 className="font-semibold text-slate-900 truncate">{job.title}</h3>
-            </div>
-            <p className="text-sm text-brand-600 font-medium mt-0.5">{company.name}</p>
+        {/* Score badge */}
+        <ScoreBadge score={match.match_score} />
 
-            {/* Match score bar */}
-            <div className="mt-1.5">
-              <ScoreBar score={match.match_score} />
-            </div>
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-3">
+            <CompanyAvatar name={company.name} logoUrl={company.logo_url} />
 
-            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 flex-wrap">
-              {job.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> {job.location}
-                </span>
-              )}
-              {job.job_type && (
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3 h-3" /> {job.job_type}
-                </span>
-              )}
-            </div>
+            <div className="flex-1 min-w-0">
+              {/* Title row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {isNew && <span className="badge-brand">New</span>}
+                <h3 className="font-semibold text-slate-900 text-sm leading-snug">
+                  {job.title}
+                </h3>
+              </div>
 
-            {/* Description */}
-            {desc && (
-              <div className="mt-2">
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {expanded || !hasLongDesc ? desc : shortDesc}
-                </p>
-                {hasLongDesc && (
-                  <button
-                    onClick={() => setExpanded((v) => !v)}
-                    className="text-xs text-brand-500 hover:text-brand-700 mt-0.5 flex items-center gap-0.5"
-                  >
-                    {expanded
-                      ? <><ChevronUp className="w-3 h-3" /> Show less</>
-                      : <><ChevronDown className="w-3 h-3" /> Show more</>}
-                  </button>
+              {/* Company + meta */}
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <span className="text-sm font-medium text-brand-600">{company.name}</span>
+                {job.location && (
+                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <MapPin className="w-3 h-3" /> {job.location}
+                  </span>
+                )}
+                {job.job_type && (
+                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <Briefcase className="w-3 h-3" /> {job.job_type}
+                  </span>
+                )}
+                {posted && (
+                  <span className="text-xs text-slate-400">{posted}</span>
                 )}
               </div>
-            )}
 
-            {/* Matched keywords */}
-            {keywords.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-slate-400 mb-1">Matched skills:</p>
-                <div className="flex flex-wrap gap-1">
-                  {keywords.slice(0, 8).map((kw) => (
-                    <span key={kw} className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-100">
-                      {kw}
-                    </span>
-                  ))}
-                  {keywords.length > 8 && (
-                    <span className="text-xs text-slate-400 px-1 py-0.5">
-                      +{keywords.length - 8} more
-                    </span>
-                  )}
-                </div>
+              {/* JD quality + badges row */}
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <JDQualityBadge score={job.jd_quality_score} />
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        <a
-          href={job.apply_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-shrink-0 flex items-center gap-1.5 btn-primary text-sm"
-        >
-          Apply <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+            {/* Apply button */}
+            <a
+              href={job.apply_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary text-xs px-3 py-1.5 flex-shrink-0"
+            >
+              Apply <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
+          {/* Description */}
+          {desc && (
+            <div className="mt-2.5 pl-[52px]">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                {expanded || !hasMore ? desc : shortDesc}
+              </p>
+              {hasMore && (
+                <button
+                  onClick={() => setExpanded(v => !v)}
+                  className="btn-ghost text-xs px-0 py-0.5 mt-0.5 text-brand-500"
+                >
+                  {expanded
+                    ? <><ChevronUp className="w-3 h-3" /> Show less</>
+                    : <><ChevronDown className="w-3 h-3" /> Show more</>}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Matched keywords */}
+          {keywords.length > 0 && (
+            <div className="mt-3 pl-[52px]">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                Matched skills
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {keywords.slice(0, 10).map(kw => (
+                  <span key={kw} className="badge-blue text-[10px]">{kw}</span>
+                ))}
+                {keywords.length > 10 && (
+                  <span className="text-xs text-slate-400 self-center">
+                    +{keywords.length - 10} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -30,17 +30,18 @@ def run():
     # Fetch jobs scraped in last 25 hours (give buffer for scrape time)
     cutoff = (datetime.now(tz=timezone.utc) - timedelta(hours=25)).isoformat()
     jobs_res = svc.table("jobs").select(
-        "id, title, description, location, job_type, company_id"
+        "id, title, description, location, job_type, company_id, jd_quality_score"
     ).gte("scraped_at", cutoff).execute()
     all_jobs = jobs_res.data or []
 
-    # Filter out placeholder descriptions (useless for matching)
+    # Filter out placeholder / low-quality descriptions (useless for matching)
     jobs = [
         j for j in all_jobs
         if j.get("description")
         and len(j.get("description", "")) > 80
         and not j.get("description", "").lower().startswith("visit careers")
         and not j.get("description", "").lower().startswith("apply at ")
+        and (j.get("jd_quality_score") is None or j.get("jd_quality_score", 1.0) >= 0.20)
     ]
     print(f"[Match] {len(jobs)} matchable jobs ({len(all_jobs)-len(jobs)} placeholders filtered).")
 
