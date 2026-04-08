@@ -82,7 +82,12 @@ export default function Login() {
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 required />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 mt-2">
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-brand-600 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
