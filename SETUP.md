@@ -137,10 +137,8 @@ Add each of these:
 
 1. Go to **vercel.com** → New Project → Import your GitHub repo
 2. Settings:
-   - **Root directory**: `frontend`
-   - **Framework**: Vite
-   - **Build command**: `npm run build`
-   - **Output directory**: `dist`
+   - **Root directory**: leave as **repository root** (do **not** set `frontend` here). The root `vercel.json` installs and builds from `frontend/` and sets **Output directory** to `frontend/dist`, so deep links like `/reset-password` resolve via the SPA rewrite to `index.html`.
+   - If the project was previously set with **Root directory** = `frontend`, change it back to the repo root (or clear it) and redeploy, or Vercel will look for `frontend/frontend/dist` and the site will 404.
 
 3. Under **Environment Variables**, add:
    ```
