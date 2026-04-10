@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Zap, CheckCircle, XCircle } from 'lucide-react'
+
+function parseHashError() {
+  const raw = window.location.hash?.replace(/^#/, '') ?? ''
+  if (!raw) return null
+  const params = new URLSearchParams(raw)
+  const err = params.get('error')
+  const code = params.get('error_code')
+  if (!err && !code) return null
+  return (
+    params.get('error_description') ||
+    (code === 'otp_expired'
+      ? 'This reset link has expired or was already used. Request a new one below.'
+      : 'This reset link is invalid.')
+  )
+}
 
 function Req({ met, text }) {
   return (
@@ -22,10 +37,17 @@ export default function ResetPassword() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [ready, setReady]         = useState(false)  // token verified
+  const [linkError, setLinkError] = useState(null)
 
   // Supabase sends the reset token as a URL fragment (#access_token=...)
   // onAuthStateChange picks it up automatically when the page loads
   useEffect(() => {
+    const hashErr = parseHashError()
+    if (hashErr) {
+      setLinkError(hashErr)
+      return
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setReady(true)
@@ -84,7 +106,19 @@ export default function ResetPassword() {
             <span className="font-bold text-slate-900">Upthrive Jobs</span>
           </div>
 
-          {!ready ? (
+          {linkError ? (
+            <div className="text-center py-8 space-y-4">
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {linkError}
+              </p>
+              <Link
+                to="/forgot-password"
+                className="inline-block text-sm font-medium text-brand-600 hover:text-brand-700"
+              >
+                Request a new reset link
+              </Link>
+            </div>
+          ) : !ready ? (
             /* Waiting for Supabase to verify the token from URL */
             <div className="text-center py-10">
               <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
