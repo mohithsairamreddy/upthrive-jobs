@@ -21,17 +21,68 @@ export default function ResetPassword() {
   const [confirm, setConfirm]     = useState('')
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [linkError, setLinkError] = useState('')
   const [ready, setReady]         = useState(false)  // token verified
 
-  // Supabase sends the reset token as a URL fragment (#access_token=...)
-  // onAuthStateChange picks it up automatically when the page loads
+  // Recovery links can be implicit (hash) or PKCE (?code=...). PKCE completes with SIGNED_IN while
+  // GoTrue only emits PASSWORD_RECOVERY for implicit recovery — so we also trust getSession() after
+  // initialize(), but only when the URL actually carried auth callback params (avoid treating any
+  // existing login session as a reset session).
   useEffect(() => {
+    const hashPart = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
+    const hashParams = new URLSearchParams(hashPart)
+    const searchParams = new URLSearchParams(window.location.search)
+    const hadAuthCallback =
+      searchParams.has('code') ||
+      hashParams.has('access_token') ||
+      hashParams.get('type') === 'recovery'
+
+    let cancelled = false
+    const doneRef = { current: false }
+
+    const finish = () => {
+      if (cancelled || doneRef.current) return
+      doneRef.current = true
+      setReady(true)
+    }
+
+    const fail = (message) => {
+      if (cancelled || doneRef.current) return
+      doneRef.current = true
+      setLinkError(message)
+    }
+
+    if (!hadAuthCallback) {
+      fail('Open this page using the link from your password reset email.')
+      return undefined
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true)
-      }
+      if (event === 'PASSWORD_RECOVERY') finish()
     })
-    return () => subscription.unsubscribe()
+
+    ;(async () => {
+      const { error: initError } = await supabase.auth.initialize()
+      if (cancelled) return
+      if (initError) {
+        fail(initError.message || 'Invalid or expired reset link.')
+        return
+      }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (cancelled) return
+      if (session) finish()
+    })()
+
+    const timer = window.setTimeout(() => {
+      if (cancelled || doneRef.current) return
+      fail('This reset link is invalid or has expired. Please request a new one.')
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const hasMin     = password.length >= 8
@@ -84,7 +135,20 @@ export default function ResetPassword() {
             <span className="font-bold text-slate-900">Upthrive Jobs</span>
           </div>
 
-          {!ready ? (
+          {linkError ? (
+            <div className="text-center py-10 space-y-4">
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {linkError}
+              </p>
+              <button
+                type="button"
+                className="btn-primary w-full py-2.5"
+                onClick={() => navigate('/forgot-password', { replace: true })}
+              >
+                Request a new link
+              </button>
+            </div>
+          ) : !ready ? (
             /* Waiting for Supabase to verify the token from URL */
             <div className="text-center py-10">
               <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
